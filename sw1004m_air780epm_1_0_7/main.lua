@@ -1,9 +1,8 @@
 -- LuaTools needs PROJECT and VERSION information
 PROJECT = "relay_4_mqtt_netled"
-VERSION = "1.0.9-debug-MARKER-XYZ"
+VERSION = "1.1.0-stringfind"
 
 log.info("main", PROJECT, VERSION)
-log.info("main", "FLASH_VERIFY_MARKER_98765")
 
 _G.sys = require("sys")
 _G.sysplus = require("sysplus")
@@ -476,8 +475,16 @@ sys.taskInit(function()
                 publish_status(mqtt_client, pub_topic, relay_states, "command_status")
                 return
             end
-            local relay_id_raw, command = payload and payload:match("(%d+):(%w+)")
-            log_ok("debug", "DBG-PARSE", "relay_id_raw", relay_id_raw, "command", command)
+            -- INFO: pattern-free parse — Lua pattern library on this LuatOS V2034 build
+            -- silently returns nil for %d / %w captures. Use plain string.find + string.sub
+            -- (3rd arg `true` = plain text find, no patterns involved).
+            local colon_pos = string.find(pl_str, ":", 1, true)
+            local relay_id_raw, command
+            if colon_pos then
+                relay_id_raw = string.sub(pl_str, 1, colon_pos - 1)
+                command = string.sub(pl_str, colon_pos + 1)
+            end
+            log_ok("debug", "DBG-PARSE", "relay_id_raw", relay_id_raw, "command", command, "colon_pos", colon_pos)
             local relay_id = tonumber(relay_id_raw)
             local state = normalize_command(command)
             log_ok("debug", "DBG-NORMALIZE", "relay_id", relay_id, "state", state)
