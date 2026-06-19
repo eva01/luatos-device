@@ -1,8 +1,9 @@
 -- LuaTools needs PROJECT and VERSION information
 PROJECT = "relay_4_mqtt_netled"
-VERSION = "1.0.7"
+VERSION = "1.0.9-debug-MARKER-XYZ"
 
 log.info("main", PROJECT, VERSION)
+log.info("main", "FLASH_VERIFY_MARKER_98765")
 
 _G.sys = require("sys")
 _G.sysplus = require("sysplus")
@@ -461,6 +462,12 @@ sys.taskInit(function()
             end
             publish_status(mqtt_client, pub_topic, relay_states, "conack")
         elseif event == "recv" then
+            -- INFO: debug — confirm we entered recv and log every byte detail
+            local pl_str = payload and tostring(payload) or ""
+            local pl_len = #pl_str
+            local pl_first = pl_len > 0 and string.byte(pl_str, 1) or -1
+            local pl_last  = pl_len > 0 and string.byte(pl_str, pl_len) or -1
+            log_ok("debug", "DBG-RECV-ENTER", "topic", data, "expected", sub_topic, "topic_match", data == sub_topic, "payload_len", pl_len, "first", pl_first, "last", pl_last, "payload_str", pl_str)
             if data ~= sub_topic then
                 log_warn("mqtt", "ignore topic", data, "expected", sub_topic)
                 return
@@ -469,14 +476,16 @@ sys.taskInit(function()
                 publish_status(mqtt_client, pub_topic, relay_states, "command_status")
                 return
             end
-            local relay_id, command = payload and payload:match("(%d+):(%w+)")
-            relay_id = tonumber(relay_id)
+            local relay_id_raw, command = payload and payload:match("(%d+):(%w+)")
+            log_ok("debug", "DBG-PARSE", "relay_id_raw", relay_id_raw, "command", command)
+            local relay_id = tonumber(relay_id_raw)
             local state = normalize_command(command)
+            log_ok("debug", "DBG-NORMALIZE", "relay_id", relay_id, "state", state)
             if relay_id and relay_id >= 1 and relay_id <= 4 and state ~= nil then
                 log_ok("mqtt", "command", relay_id, command, state)
                 sys.publish("do_relay_control", relay_id, state)
             else
-                log_warn("mqtt", "invalid payload", payload)
+                log_warn("mqtt", "invalid payload", "relay_id", relay_id, "state", state, "payload", payload)
             end
         elseif event == "disconnect" or event == "close" then
             mqtt_ready = false
