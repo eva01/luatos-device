@@ -469,7 +469,7 @@ sys.taskInit(function()
                 publish_status(mqtt_client, pub_topic, relay_states, "command_status")
                 return
             end
-            local relay_id, command = payload and payload:match("^(%d+):(%w+)$")
+            local relay_id, command = payload and payload:match("(%d+):(%w+)")
             relay_id = tonumber(relay_id)
             local state = normalize_command(command)
             if relay_id and relay_id >= 1 and relay_id <= 4 and state ~= nil then
