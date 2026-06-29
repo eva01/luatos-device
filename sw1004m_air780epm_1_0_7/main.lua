@@ -1,6 +1,6 @@
 -- LuaTools needs PROJECT and VERSION information
 PROJECT = "relay_4_mqtt_netled"
-VERSION = "1.0.7"
+VERSION = "1.0.8"
 
 log.info("main", PROJECT, VERSION)
 
@@ -469,8 +469,16 @@ sys.taskInit(function()
                 publish_status(mqtt_client, pub_topic, relay_states, "command_status")
                 return
             end
-            local relay_id, command = payload and payload:match("^(%d+):(%w+)$")
-            relay_id = tonumber(relay_id)
+            -- INFO: parse "<relayId>:<state>" without Lua patterns. The LuatOS V2034 Lua
+            -- pattern library silently returns nil for %d / %w captures on otherwise
+            -- valid payloads, so use plain string.find (3rd arg true = plain text) + string.sub.
+            local colon_pos = payload and string.find(payload, ":", 1, true)
+            local relay_id_raw, command
+            if colon_pos then
+                relay_id_raw = string.sub(payload, 1, colon_pos - 1)
+                command = string.sub(payload, colon_pos + 1)
+            end
+            local relay_id = tonumber(relay_id_raw)
             local state = normalize_command(command)
             if relay_id and relay_id >= 1 and relay_id <= 4 and state ~= nil then
                 log_ok("mqtt", "command", relay_id, command, state)
